@@ -1,11 +1,13 @@
+from django.db import transaction
 from django.db.models import QuerySet
 
-from db.models import Movie
+from db.models import Movie, Genre, Actor
 
 
 def get_movies(
     genres_ids: list[int] = None,
     actors_ids: list[int] = None,
+    title: str = None,
 ) -> QuerySet:
     queryset = Movie.objects.all()
 
@@ -14,6 +16,9 @@ def get_movies(
 
     if actors_ids:
         queryset = queryset.filter(actors__id__in=actors_ids)
+
+    if title:
+        queryset = queryset.filter(title__icontains=title)
 
     return queryset
 
@@ -28,13 +33,29 @@ def create_movie(
     genres_ids: list = None,
     actors_ids: list = None,
 ) -> Movie:
-    movie = Movie.objects.create(
-        title=movie_title,
-        description=movie_description,
-    )
-    if genres_ids:
-        movie.genres.set(genres_ids)
-    if actors_ids:
-        movie.actors.set(actors_ids)
+    try:
+        # Start the transaction block
+        with transaction.atomic():
+            movie = Movie.objects.create(
+                title=movie_title,
+                description=movie_description
+            )
 
-    return movie
+            genres = Genre.objects.filter(id__in=genres_ids)
+            actors = Actor.objects.filter(id__in=actors_ids)
+
+            if genres.count() != len(genres_ids):
+                raise ValueError("One or more genre IDs are invalid.")
+
+            if actors.count() != len(actors_ids):
+                raise ValueError("One or more actor IDs are invalid.")
+
+            # Assign genres and actors to the movie
+            movie.genres.set(genres)
+            movie.actors.set(actors)
+            movie.save()
+
+    except ValueError as e:
+        raise e
+    except Exception as e:
+        raise e

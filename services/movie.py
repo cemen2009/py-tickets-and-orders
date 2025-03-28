@@ -8,7 +8,7 @@ def get_movies(
     genres_ids: list[int] = None,
     actors_ids: list[int] = None,
     title: str = None,
-) -> QuerySet:
+) -> QuerySet[Movie]:
     queryset = Movie.objects.all()
 
     if genres_ids:
@@ -27,6 +27,7 @@ def get_movie_by_id(movie_id: int) -> Movie:
     return Movie.objects.get(id=movie_id)
 
 
+@transaction.atomic
 def create_movie(
     movie_title: str,
     movie_description: str,
@@ -34,27 +35,24 @@ def create_movie(
     actors_ids: list = None,
 ) -> Movie:
     try:
-        # Start the transaction block
-        with transaction.atomic():
-            movie = Movie.objects.create(
-                title=movie_title,
-                description=movie_description
-            )
+        movie = Movie.objects.create(
+            title=movie_title,
+            description=movie_description
+        )
 
-            genres = Genre.objects.filter(id__in=genres_ids)
-            actors = Actor.objects.filter(id__in=actors_ids)
+        genres = Genre.objects.filter(id__in=genres_ids)
+        actors = Actor.objects.filter(id__in=actors_ids)
 
-            if genres.count() != len(genres_ids):
-                raise ValueError("One or more genre IDs are invalid.")
+        if genres.count() != len(genres_ids):
+            raise ValueError("One or more genre IDs are invalid.")
 
-            if actors.count() != len(actors_ids):
-                raise ValueError("One or more actor IDs are invalid.")
+        if actors.count() != len(actors_ids):
+            raise ValueError("One or more actor IDs are invalid.")
 
-            # Assign genres and actors to the movie
-            movie.genres.set(genres)
-            movie.actors.set(actors)
-            movie.save()
-
+        # Assign genres and actors to the movie
+        movie.genres.set(genres)
+        movie.actors.set(actors)
+        movie.save()
     except ValueError as e:
         raise e
     except Exception as e:

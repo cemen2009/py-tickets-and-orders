@@ -59,7 +59,11 @@ class User(AbstractUser):
 
 
 class Order(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="orders",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -72,19 +76,16 @@ class Order(models.Model):
 class Ticket(models.Model):
     movie_session = models.ForeignKey(
         MovieSession,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name="tickets"
     )
-    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="tickets"
+    )
     row = models.IntegerField()
     seat = models.IntegerField()
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["movie_session", "row", "seat"],
-                name="unique_ticket"
-            )
-        ]
 
     def clean(self) -> None:
         errors = {}
@@ -113,3 +114,11 @@ class Ticket(models.Model):
         return (f"{self.movie_session.movie.title} "
                 f"{str(self.movie_session.show_time)} "
                 f"(row: {self.row}, seat: {self.seat})")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["movie_session", "row", "seat"],
+                name="unique_ticket"
+            )
+        ]
